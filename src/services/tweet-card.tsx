@@ -245,7 +245,7 @@ export function TweetCard({
         width: "560px",
         backgroundColor: colors.bg,
         padding: "20px",
-        fontFamily: "Inter, Noto Sans SC",
+        fontFamily: "Maple Mono CN",
       })}
     >
       <div style={S({ display: "flex", gap: "12px" })}>
