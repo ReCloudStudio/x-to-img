@@ -13,6 +13,9 @@ async function ensureWasm() {
   wasmReady = true
 }
 
+const CARD_W = 560
+const SCALE = 3
+
 export async function renderTweetToPNG(
   tweet: TweetData,
   theme: "light" | "dark" | "dim" = "light",
@@ -25,13 +28,15 @@ export async function renderTweetToPNG(
   const svg = await satori(
     <TweetCard tweet={tweet} theme={theme} />,
     {
-      width: 560,
+      width: CARD_W,
       fonts: satoriFonts,
     }
   )
 
   const resvg = new Resvg(svg, {
-    fitTo: { mode: "width", value: 560 },
+    fitTo: { mode: "width", value: CARD_W * SCALE },
+    shapeRendering: 2,
+    textRendering: 2,
   })
   return resvg.render().asPng()
 }
