@@ -15,7 +15,7 @@ async function ensureWasm() {
     await initWasm(wasmBin)
     wasmReady = true
     return
-  } catch {}
+  } catch { /* noop */ }
 
   for (const url of [
     "https://cdn.jsdelivr.net/npm/@resvg/resvg-wasm@2.6.2/index_bg.wasm",
@@ -27,7 +27,7 @@ async function ensureWasm() {
       await initWasm(resp)
       wasmReady = true
       return
-    } catch {}
+    } catch { /* noop */ }
   }
 
   throw new Error("Failed to load resvg WASM")

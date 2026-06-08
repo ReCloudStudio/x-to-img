@@ -124,5 +124,5 @@ app.get("/health", (c) => c.json({ status: "ok" }));
 export default app;
 
 if ((globalThis as any).Deno !== undefined) {
-  ((globalThis as any).Deno as typeof Deno).serve(app.fetch);
+  (globalThis as any).Deno.serve(app.fetch);
 }

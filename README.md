@@ -43,11 +43,11 @@ deno task dev                # Deno (requires --unstable-kv)
 
 Font files are downloaded from GitHub Releases on first cold start and cached:
 
-| Platform | Cache |
-|----------|-------|
-| Cloudflare Workers | KV namespace (`FONT_KV`) |
-| Deno Deploy | Deno KV (automatic) |
-| Bun | In-memory only (per process) |
+| Platform           | Cache                        |
+| ------------------ | ---------------------------- |
+| Cloudflare Workers | KV namespace (`FONT_KV`)     |
+| Deno Deploy        | Deno KV (automatic)          |
+| Bun                | In-memory only (per process) |
 
 ## Authentication
 

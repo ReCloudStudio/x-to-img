@@ -3,7 +3,7 @@ export interface FontKV {
   put(key: string, value: ArrayBuffer): Promise<void>
 }
 
-export function cfFontKV(ns: KVNamespace): FontKV {
+export function cfFontKV(ns: { get(key: string, type?: string): Promise<unknown>; put(key: string, value: unknown): Promise<void> }): FontKV {
   return {
     get: (key) => ns.get(key, "arrayBuffer") as Promise<ArrayBuffer | null>,
     put: (key, value) => ns.put(key, value),

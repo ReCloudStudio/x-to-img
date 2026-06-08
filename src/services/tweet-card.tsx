@@ -109,7 +109,7 @@ function InlineEmojiText({
 
 function renderRichLine(
   line: string,
-  colors: ThemeColors
+  _colors: ThemeColors
 ): Array<{ type: "text" | "emoji"; text?: string; url?: string }> {
   const parts = parseTextAndEmoji(line)
   const result: Array<any> = []
