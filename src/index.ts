@@ -1,9 +1,9 @@
 import { Hono } from "hono"
 import { cors } from "hono/cors"
 import { logger } from "hono/logger"
-import { auth } from "./middleware/auth"
-import { cfFontKV, denoFontKV } from "./services/kv"
-import convertRoute from "./routes/convert"
+import { auth } from "./middleware/auth.ts"
+import { cfFontKV, denoFontKV } from "./services/kv.ts"
+import convertRoute from "./routes/convert.ts"
 
 const app = new Hono()
 

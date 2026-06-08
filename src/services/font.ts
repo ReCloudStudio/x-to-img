@@ -1,5 +1,5 @@
 import { inflateRaw as pakoInflateRaw } from "pako"
-import type { FontKV } from "./kv"
+import type { FontKV } from "./kv.ts"
 
 const FONT_ZIP_URL = "https://github.com/subframe7536/maple-font/releases/download/v7.9/MapleMono-CN.zip"
 
