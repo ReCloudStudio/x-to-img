@@ -1,10 +1,10 @@
 # X to Image API
 
-Convert X/Twitter tweets to PNG images. Deployable on Cloudflare Workers.
+Convert X/Twitter tweets to PNG images. Deployable on Cloudflare Workers or Deno Deploy.
 
 ## Tech Stack
 
-- **Runtime**: Cloudflare Workers (also runs on [Bun](https://bun.sh))
+- **Runtime**: Cloudflare Workers / Deno Deploy / [Bun](https://bun.sh)
 - **Framework**: [Hono](https://hono.dev)
 - **Font**: [Maple Mono CN](https://github.com/subframe7536/maple-font) (via GitHub Releases CDN)
 - **Rendering**: [Satori](https://github.com/vercel/satori) + [resvg-wasm](https://github.com/nicedoc/resvg-js)
@@ -18,31 +18,36 @@ bun install
 ## Deploy to Cloudflare Workers
 
 ```bash
-# 1. Create KV namespace (first time only)
-npx wrangler kv:namespace create FONT_KV
-
-# 2. Copy the returned id into wrangler.jsonc kv_namespaces[0].id
-
-# 3. Set API token secret (optional)
-npx wrangler secret put API_TOKEN
-
-# 4. Deploy
+npx wrangler kv:namespace create FONT_KV        # first time only, copy id into wrangler.jsonc
+npx wrangler secret put API_TOKEN               # optional
 npx wrangler deploy
 ```
+
+## Deploy to Deno Deploy
+
+```bash
+deployctl deploy --project=x-to-img --entrypoint src/index.ts
+```
+
+Deno Deploy uses built-in Deno KV for font caching (no setup needed).
 
 ## Local Development
 
 ```bash
-# Bun
-bun run bun:dev
-
-# Workers emulator
-npx wrangler dev
+bun run bun:dev              # Bun
+npx wrangler dev             # CF Workers emulator
+deno task dev                # Deno (requires --unstable-kv)
 ```
 
 ## Font Caching
 
-Font files (~18MB Regular + Bold TTF) are downloaded from GitHub Releases on first cold start and cached in KV (`FONT_KV`). Subsequent requests read directly from KV, avoiding re-download and ZIP extraction overhead.
+Font files are downloaded from GitHub Releases on first cold start and cached:
+
+| Platform | Cache |
+|----------|-------|
+| Cloudflare Workers | KV namespace (`FONT_KV`) |
+| Deno Deploy | Deno KV (automatic) |
+| Bun | In-memory only (per process) |
 
 ## Authentication
 
@@ -51,8 +56,6 @@ If `API_TOKEN` is set, all `/api/*` routes require:
 ```
 Authorization: Bearer <your-secret-token>
 ```
-
-Otherwise returns `401`. If `API_TOKEN` is not set, no auth required.
 
 ## API
 

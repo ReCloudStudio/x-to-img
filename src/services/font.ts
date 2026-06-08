@@ -1,149 +1,135 @@
-const FONT_ZIP_URL = "https://github.com/subframe7536/maple-font/releases/download/v7.9/MapleMono-CN.zip";
+import { inflateRaw as pakoInflateRaw } from "pako"
+import type { FontKV } from "./kv"
 
-const TARGET_FILES = ["MapleMono-CN-Regular.ttf", "MapleMono-CN-Bold.ttf"] as const;
+const FONT_ZIP_URL = "https://github.com/subframe7536/maple-font/releases/download/v7.9/MapleMono-CN.zip"
+
+const TARGET_FILES = ["MapleMono-CN-Regular.ttf", "MapleMono-CN-Bold.ttf"] as const
 
 const KV_KEYS = {
   regular: "font:maple-mono-cn:regular",
   bold: "font:maple-mono-cn:bold",
-} as const;
+} as const
 
 interface FontCache {
-  regular: ArrayBuffer;
-  bold: ArrayBuffer;
+  regular: ArrayBuffer
+  bold: ArrayBuffer
 }
 
-let fontCache: FontCache | null = null;
+let fontCache: FontCache | null = null
 
 function readU16(buf: Uint8Array, off: number) {
-  return (buf[off] | (buf[off + 1] << 8)) >>> 0;
+  return (buf[off] | (buf[off + 1] << 8)) >>> 0
+}
+function readU32(buf: Uint8Array, off: number) {
+  return (buf[off] | (buf[off + 1] << 8) | (buf[off + 2] << 16) | (buf[off + 3] << 24)) >>> 0
 }
 
-function readU32(buf: Uint8Array, off: number) {
-  return (buf[off] | (buf[off + 1] << 8) | (buf[off + 2] << 16) | (buf[off + 3] << 24)) >>> 0;
+function inflateRaw(compressed: Uint8Array) {
+  if (compressed.length > 20_000_000) throw new Error(`Compressed size ${compressed.length} too large`)
+  const result = pakoInflateRaw(compressed)
+  if (result.length > 30_000_000) throw new Error(`Decompressed size ${result.length} too large`)
+  return result
 }
 
 function findEOCD(buf: Uint8Array) {
-  const maxSearch = Math.min(buf.length, 65557);
-  for (let i = buf.length - 22; i >= buf.length - maxSearch; i--) {
+  for (let i = buf.length - 22; i >= 0; i--) {
     if (buf[i] === 0x50 && buf[i + 1] === 0x4b && buf[i + 2] === 0x05 && buf[i + 3] === 0x06) {
-      return i;
+      return {
+        entriesTotal: readU16(buf, i + 10),
+        cdSize: readU32(buf, i + 12),
+        cdOff: readU32(buf, i + 16),
+      }
     }
   }
-  return -1;
+  throw new Error("EOCD not found in zip")
 }
 
-async function inflateRaw(compressed: Uint8Array): Promise<Uint8Array> {
-  const ds = new DecompressionStream("deflate-raw");
-  const writer = ds.writable.getWriter();
-  writer.write(compressed);
-  writer.close();
-  const reader = ds.readable.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    total += value.length;
-  }
-  const result = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    result.set(chunk, offset);
-    offset += chunk.length;
-  }
-  return result;
-}
+async function extractFonts(zipBuf: ArrayBuffer) {
+  const buf = new Uint8Array(zipBuf)
+  const { entriesTotal, cdOff } = findEOCD(buf)
 
-async function extractFonts(zipped: ArrayBuffer, filenames: readonly string[]) {
-  const buf = new Uint8Array(zipped);
-  const eocdOff = findEOCD(buf);
-  if (eocdOff < 0) throw new Error("Invalid ZIP: EOCD not found");
+  if (cdOff >= buf.length) throw new Error(`CD offset ${cdOff} beyond buffer ${buf.length}`)
 
-  const entriesTotal = readU16(buf, eocdOff + 10);
-  const cdOff = readU32(buf, eocdOff + 16);
+  const result = new Map<string, ArrayBuffer>()
 
-  const result = new Map<string, ArrayBuffer>();
-  const inflatePromises: Promise<void>[] = [];
-
-  let pos = cdOff;
+  let pos = cdOff
   for (let i = 0; i < entriesTotal; i++) {
-    const sig = readU32(buf, pos);
-    if (sig !== 0x02014b50) throw new Error("Invalid central directory entry");
-    const method = readU16(buf, pos + 10);
-    const compSize = readU32(buf, pos + 20);
-    const uncompSize = readU32(buf, pos + 24);
-    const nameLen = readU16(buf, pos + 28);
-    const extraLen = readU16(buf, pos + 30);
-    const commentLen = readU16(buf, pos + 32);
-    const localOff = readU32(buf, pos + 42);
+    if (pos + 46 > buf.length) throw new Error("CD entry out of bounds")
+    const sig = readU32(buf, pos)
+    if (sig !== 0x02014b50) throw new Error("Invalid central directory entry")
+    const method = readU16(buf, pos + 10)
+    const compSize = readU32(buf, pos + 20)
+    const uncompSize = readU32(buf, pos + 24)
+    const nameLen = readU16(buf, pos + 28)
+    const extraLen = readU16(buf, pos + 30)
+    const commentLen = readU16(buf, pos + 32)
+    const localOff = readU32(buf, pos + 42)
+    const name = new TextDecoder().decode(buf.subarray(pos + 46, pos + 46 + nameLen))
 
-    const name = new TextDecoder().decode(buf.subarray(pos + 46, pos + 46 + nameLen));
+    if (TARGET_FILES.includes(name as (typeof TARGET_FILES)[number])) {
+      const lhNameLen = readU16(buf, localOff + 26)
+      const lhExtraLen = readU16(buf, localOff + 28)
+      const dataOff = localOff + 30 + lhNameLen + lhExtraLen
 
-    if (filenames.includes(name)) {
-      const lhPos = localOff;
-      const lhNameLen = readU16(buf, lhPos + 26);
-      const lhExtraLen = readU16(buf, lhPos + 28);
-      const dataOff = lhPos + 30 + lhNameLen + lhExtraLen;
+      if (dataOff + (method === 0 ? uncompSize : compSize) > buf.length) {
+        throw new Error(`Font data out of bounds: offset=${dataOff} size=${method === 0 ? uncompSize : compSize} buf=${buf.length}`)
+      }
 
       if (method === 0) {
         result.set(name, buf.slice(dataOff, dataOff + uncompSize).buffer as ArrayBuffer)
       } else if (method === 8) {
         const compressed = buf.slice(dataOff, dataOff + compSize)
-        inflatePromises.push(
-          (async () => {
-            const decompressed = await inflateRaw(new Uint8Array(compressed))
-            result.set(name, decompressed.buffer as ArrayBuffer)
-          })(),
-        )
+        const decompressed = inflateRaw(new Uint8Array(compressed))
+        result.set(name, decompressed.buffer as ArrayBuffer)
       } else {
-        throw new Error(`Unsupported compression method: ${method}`);
+        throw new Error(`Unsupported compression: ${method}`)
       }
     }
 
-    pos += 46 + nameLen + extraLen + commentLen;
+    pos += 46 + nameLen + extraLen + commentLen
   }
 
-  await Promise.all(inflatePromises);
-  return result;
+  const regular = result.get(TARGET_FILES[0])
+  const bold = result.get(TARGET_FILES[1])
+  if (!regular || !bold) throw new Error("Font files not found in zip")
+
+  return { regular, bold }
 }
 
 async function downloadAndExtract(): Promise<FontCache> {
-  const resp = await fetch(FONT_ZIP_URL);
-  if (!resp.ok) throw new Error(`Failed to download fonts: ${resp.status}`);
-  const zipBuf = await resp.arrayBuffer();
+  const resp = await fetch(FONT_ZIP_URL)
+  if (!resp.ok) throw new Error(`Failed to download fonts: ${resp.status}`)
 
-  const files = await extractFonts(zipBuf, TARGET_FILES);
-  const regular = files.get("MapleMono-CN-Regular.ttf");
-  const bold = files.get("MapleMono-CN-Bold.ttf");
-  if (!regular || !bold) throw new Error("Font files not found in zip");
-
-  return { regular, bold };
+  const zipBuf = await resp.arrayBuffer()
+  if (zipBuf.byteLength > 50_000_000) throw new Error(`ZIP size ${zipBuf.byteLength} exceeds 50MB limit`)
+  return extractFonts(zipBuf)
 }
 
-export async function loadFonts(kv?: KVNamespace): Promise<FontCache> {
-  if (fontCache) return fontCache;
+export async function loadFonts(kv?: FontKV): Promise<FontCache> {
+  if (fontCache) return fontCache
 
   if (kv) {
     const [cachedRegular, cachedBold] = await Promise.all([
       kv.get(KV_KEYS.regular, "arrayBuffer"),
       kv.get(KV_KEYS.bold, "arrayBuffer"),
-    ]);
-
+    ])
     if (cachedRegular && cachedBold) {
       fontCache = { regular: cachedRegular as ArrayBuffer, bold: cachedBold as ArrayBuffer }
       return fontCache
     }
   }
 
-  const fonts = await downloadAndExtract();
+  const fonts = await downloadAndExtract()
 
   if (kv) {
-    await Promise.all([kv.put(KV_KEYS.regular, fonts.regular), kv.put(KV_KEYS.bold, fonts.bold)]);
+    await Promise.all([
+      kv.put(KV_KEYS.regular, fonts.regular),
+      kv.put(KV_KEYS.bold, fonts.bold),
+    ])
   }
 
-  fontCache = fonts;
-  return fontCache;
+  fontCache = fonts
+  return fontCache
 }
 
 export function getSatoriFonts(fonts: FontCache) {
@@ -160,5 +146,5 @@ export function getSatoriFonts(fonts: FontCache) {
       weight: 700 as const,
       style: "normal" as const,
     },
-  ];
+  ]
 }

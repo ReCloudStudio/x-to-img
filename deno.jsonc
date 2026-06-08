@@ -1,0 +1,25 @@
+{
+  "tasks": {
+    "dev": "deno run --allow-net --allow-read --allow-env --unstable-kv --watch src/index.ts",
+    "start": "deno run --allow-net --allow-read --allow-env --unstable-kv src/index.ts",
+    "deploy": "deployctl deploy --project=x-to-img --entrypoint src/index.ts"
+  },
+  "imports": {
+    "hono": "npm:hono@^4",
+    "hono/": "npm:hono@^4/",
+    "react": "npm:react@^19",
+    "react-dom": "npm:react-dom@^19",
+    "satori": "npm:satori@^0",
+    "@resvg/resvg-wasm": "npm:@resvg/resvg-wasm@^2",
+    "@resvg/resvg-wasm/": "npm:@resvg/resvg-wasm@^2/",
+    "pako": "npm:pako@^2"
+  },
+  "compilerOptions": {
+    "lib": ["deno.window", "dom"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "react"
+  },
+  "deploy": {
+    "entrypoint": "src/index.ts"
+  }
+}

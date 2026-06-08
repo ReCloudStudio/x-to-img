@@ -46,7 +46,7 @@ async function handleConvert(c: any, req: ConvertRequest) {
 
   try {
     const tweetData = await fetchTweetData(tweetId)
-    const kv = c.env?.FONT_KV
+    const kv = c.get("kv")
     const image = await renderTweetToPNG(tweetData, req.theme || "light", kv)
 
     c.header("Content-Type", "image/png")

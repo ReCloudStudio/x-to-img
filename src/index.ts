@@ -2,9 +2,18 @@ import { Hono } from "hono"
 import { cors } from "hono/cors"
 import { logger } from "hono/logger"
 import { auth } from "./middleware/auth"
+import { cfFontKV, denoFontKV } from "./services/kv"
 import convertRoute from "./routes/convert"
 
 const app = new Hono()
+
+app.use("*", async (c, next) => {
+  const kv = c.env?.FONT_KV
+    ? cfFontKV(c.env.FONT_KV)
+    : await denoFontKV().catch(() => undefined)
+  if (kv) c.set("kv", kv)
+  await next()
+})
 
 app.use("*", cors())
 app.use("*", logger())
@@ -106,3 +115,7 @@ app.get("/", (c) => {
 app.get("/health", (c) => c.json({ status: "ok" }))
 
 export default app
+
+if (typeof globalThis.Deno !== "undefined") {
+  Deno.serve(app.fetch)
+}

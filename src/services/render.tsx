@@ -1,7 +1,7 @@
 import satori from "satori"
 import { Resvg, initWasm } from "@resvg/resvg-wasm"
-import wasmBinary from "../../node_modules/@resvg/resvg-wasm/index_bg.wasm"
 import { loadFonts, getSatoriFonts } from "./font"
+import type { FontKV } from "./kv"
 import { TweetCard } from "./tweet-card"
 import type { TweetData } from "../types"
 
@@ -9,8 +9,28 @@ let wasmReady = false
 
 async function ensureWasm() {
   if (wasmReady) return
-  await initWasm(wasmBinary)
-  wasmReady = true
+
+  try {
+    const { default: wasmBin } = await import("../../node_modules/@resvg/resvg-wasm/index_bg.wasm")
+    await initWasm(wasmBin)
+    wasmReady = true
+    return
+  } catch {}
+
+  for (const url of [
+    "https://cdn.jsdelivr.net/npm/@resvg/resvg-wasm@2.6.2/index_bg.wasm",
+    "https://unpkg.com/@resvg/resvg-wasm@2.6.2/index_bg.wasm",
+  ]) {
+    try {
+      const resp = await fetch(url)
+      if (!resp.ok) continue
+      await initWasm(resp)
+      wasmReady = true
+      return
+    } catch {}
+  }
+
+  throw new Error("Failed to load resvg WASM")
 }
 
 const CARD_W = 560
@@ -19,7 +39,7 @@ const SCALE = 3
 export async function renderTweetToPNG(
   tweet: TweetData,
   theme: "light" | "dark" | "dim" = "light",
-  kv?: KVNamespace
+  kv?: FontKV
 ): Promise<Uint8Array> {
   await ensureWasm()
   const fonts = await loadFonts(kv)
