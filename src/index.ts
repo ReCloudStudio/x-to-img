@@ -123,6 +123,16 @@ app.get("/health", (c) => c.json({ status: "ok" }));
 
 export default app;
 
-if ((globalThis as any).Deno !== undefined) {
-  (globalThis as any).Deno.serve(app.fetch);
+const g = globalThis as any;
+
+const port = parseInt(
+  g.Deno
+    ? g.Deno.env.get("PORT")
+    : g.process?.env?.PORT,
+) || 3000;
+
+if (g.Deno !== undefined) {
+  g.Deno.serve({ port }, app.fetch);
+} else if (g.Bun !== undefined) {
+  g.Bun.serve({ port, fetch: app.fetch });
 }
