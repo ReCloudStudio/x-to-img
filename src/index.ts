@@ -125,14 +125,7 @@ export default app;
 
 const g = globalThis as any;
 
-const port = parseInt(
-  g.Deno
-    ? g.Deno.env.get("PORT")
-    : g.process?.env?.PORT,
-) || 3000;
-
 if (g.Deno !== undefined) {
+  const port = parseInt(g.Deno.env.get("PORT")) || 3000;
   g.Deno.serve({ port }, app.fetch);
-} else if (g.Bun !== undefined) {
-  g.Bun.serve({ port, fetch: app.fetch });
 }
