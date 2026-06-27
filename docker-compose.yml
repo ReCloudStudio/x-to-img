@@ -1,6 +1,5 @@
 services:
   x-to-img:
-    image: ghcr.io/recloudstudio/x-to-img:main
     build: .
     ports:
       - "3000:3000"
