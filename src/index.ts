@@ -121,14 +121,21 @@ app.get("/", (c) => {
 
 app.get("/health", (c) => c.json({ status: "ok" }));
 
-export default app;
-
 const g = globalThis as any;
+const isBun = g.Bun !== undefined;
+const isDeno = g.Deno !== undefined;
 
-if (g.Deno !== undefined) {
+if (isDeno) {
   const port = parseInt(g.Deno.env.get("PORT")) || 3000;
   g.Deno.serve({ port }, app.fetch);
-} else if (g.Bun !== undefined) {
+} else if (isBun) {
   const port = parseInt(g.Bun.env.PORT) || 3000;
   g.Bun.serve({ fetch: app.fetch, port });
 }
+
+// For Cloudflare Workers and other environments that use export default.
+// When running with Bun, the server is already started manually above,
+// so we export a marker object (not a valid ServerConfig) to prevent
+// Bun from auto-starting another server on the same port.
+const _default = isBun || isDeno ? { __alreadyServed: true } : app;
+export { _default as default };
