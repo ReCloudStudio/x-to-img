@@ -128,4 +128,7 @@ const g = globalThis as any;
 if (g.Deno !== undefined) {
   const port = parseInt(g.Deno.env.get("PORT")) || 3000;
   g.Deno.serve({ port }, app.fetch);
+} else if (g.Bun !== undefined) {
+  const port = parseInt(g.Bun.env.PORT) || 3000;
+  g.Bun.serve({ fetch: app.fetch, port });
 }
